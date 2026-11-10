@@ -30,7 +30,7 @@ import numpy as np
 APP_NAME = "Kothok"          # কথক - "the one who speaks"
 APP_BN = "কথক"
 APP_ID = "Kothok"
-VERSION = "2.3.0"
+VERSION = "2.3.1"
 WEBSITE = "https://rotexit.com"
 UPDATE_REPO = "itrabbi24/kothok"   # GitHub releases are checked for new versions
 UPDATE_ASSET = "Kothok-update.zip"  # app-only zip (no models) attached to every release
@@ -951,7 +951,8 @@ class App:
             self.show_window()
         else:
             root.withdraw()
-            root.after(2500, lambda: self.notify(f"Kothok চলছে — {self.hotkey_hint()}। খুলতে tray icon-এ ক্লিক করুন।"))
+            root.after(2500, lambda: self.notify(f"কথক চালু আছে। {self.talk_hint_bn()}। "
+                                                  "সেটিংস খুলতে ঘড়ির পাশের icon-এ ক্লিক করুন।"))
         if self.cfg.get("autostart"):
             try:
                 set_autostart(True)  # refresh the startup entry (older versions had no --tray)
@@ -1039,6 +1040,10 @@ class App:
             payload()
 
     # ---------------------------------------------------------------- recording
+    def talk_hint_bn(self):
+        key = self.cfg["hotkey"].replace("+", " + ")
+        return f"কথা বলতে {key} চেপে ধরুন" if self.cfg["mode"] == "hold" else f"কথা বলতে {key} একবার চাপুন"
+
     def hotkey_hint(self):
         return ("hold " if self.cfg["mode"] == "hold" else "press ") + self.cfg["hotkey"]
 
@@ -1485,7 +1490,8 @@ class App:
         self.root.withdraw()
         if not self.tray_hint_shown:
             self.tray_hint_shown = True
-            self.notify("Kothok tray-তে চলছে। আবার খুলতে ঘড়ির পাশের icon-এ ক্লিক করুন।")
+            self.notify(f"কথক background-এ চালু আছে। {self.talk_hint_bn()}। "
+                        "আবার খুলতে ঘড়ির পাশের icon-এ ক্লিক করুন।")
 
     def quit(self):
         if self.recording:
@@ -1513,6 +1519,14 @@ def main():
     try:  # own taskbar identity, so Windows shows the Kothok icon instead of python/tk
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("rotexit.Kothok")
     except Exception:
+        pass
+    try:  # name + icon for notifications (otherwise Windows shows "rotexit.Kothok" with no icon)
+        ico = Path(getattr(sys, "_MEIPASS", ROOT)) / "app.ico"
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\Classes\AppUserModelId\rotexit.Kothok") as k:
+            winreg.SetValueEx(k, "DisplayName", 0, winreg.REG_SZ, APP_NAME)
+            if ico.exists():
+                winreg.SetValueEx(k, "IconUri", 0, winreg.REG_SZ, str(ico))
+    except OSError:
         pass
     globals()["_MUTEX"] = single_instance()  # must stay alive for the process lifetime
     log.info("starting %s %s from %s", APP_NAME, VERSION, ROOT)
