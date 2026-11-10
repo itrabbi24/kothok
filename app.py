@@ -30,7 +30,7 @@ import numpy as np
 APP_NAME = "Kothok"          # কথক - "the one who speaks"
 APP_BN = "কথক"
 APP_ID = "Kothok"
-VERSION = "2.3.2"
+VERSION = "2.4.0"
 WEBSITE = "https://rotexit.com"
 UPDATE_REPO = "itrabbi24/kothok"   # GitHub releases are checked for new versions
 UPDATE_ASSET = "Kothok-update.zip"  # app-only zip (no models) attached to every release
@@ -862,7 +862,10 @@ class Overlay:
         self._pill(2, 2, self.W - 2, self.H - 2, 21, fill="#1f2430")
         self.dot = self.c.create_oval(16, 16, 30, 30, fill="#e53935", outline="")
         self.label = self.c.create_text(42, self.H // 2, anchor="w", fill="white", font=("Nirmala UI", 11),
-                                        text="", width=self.W - 56)
+                                        text="", width=self.W - 130)
+        # live sound bars on the right, driven by the microphone level while listening
+        self.level, self.heights = 0.0, [3.0] * 5
+        self.bars = [self.c.create_rectangle(0, 0, 0, 0, fill="#22c55e", outline="") for _ in range(5)]
         sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
         self.top.geometry(f"{self.W}x{self.H}+{(sw - self.W) // 2}+{sh - self.H - 90}")
         self.top.update_idletasks()
@@ -874,6 +877,7 @@ class Overlay:
         self.pulse_on = True
         self.hide()
         self._tick()
+        self._animate()
 
     def _pill(self, x1, y1, x2, y2, r, **kw):
         c = self.c
@@ -899,6 +903,21 @@ class Overlay:
     def hide(self):
         user32.ShowWindow(self.hwnd, 0)
         self.visible = False
+
+    def _animate(self):
+        import random
+        listening = self.visible and getattr(self, "colour", "") == "#e53935"
+        level = min(1.0, self.level * 12) if listening else 0.0
+        for i, bar in enumerate(self.bars):
+            if not listening:
+                self.c.coords(bar, 0, 0, 0, 0)
+                continue
+            shape = (0.55, 0.85, 1.0, 0.85, 0.55)[i]
+            target = 3 + 24 * level * shape * random.uniform(0.6, 1.0)
+            self.heights[i] += (target - self.heights[i]) * 0.45
+            h, x = self.heights[i], self.W - 78 + i * 11
+            self.c.coords(bar, x, self.H / 2 - h / 2, x + 5, self.H / 2 + h / 2)
+        self.top.after(50, self._animate)
 
     def _tick(self):
         if self.visible:
@@ -1065,7 +1084,7 @@ class App:
             q = self.audio_q
             self.stream = sd.InputStream(device=device, samplerate=sr, channels=1, dtype="float32",
                                          blocksize=int(sr * 0.1),
-                                         callback=lambda data, frames, t, status: q.put((sr, data[:, 0].copy())))
+                                         callback=lambda data, frames, t, status: self.on_audio(q, sr, data))
             self.stream.start()
         except Exception as exc:
             log.exception("microphone")
@@ -1080,6 +1099,11 @@ class App:
         self.set_tray_state("rec")
         threading.Thread(target=self.session_worker, args=(self.engine, self.audio_q, self.target,
                                                            dict(self.cfg)), name="Session", daemon=True).start()
+
+    def on_audio(self, q, sr, data):
+        x = data[:, 0].copy()
+        q.put((sr, x))
+        self.overlay.level = float(np.sqrt(np.mean(x * x)))  # drives the live sound bars
 
     def stop_recording(self):
         if not self.recording:
