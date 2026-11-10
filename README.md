@@ -19,7 +19,12 @@
   <a href="https://github.com/itrabbi24/kothok/releases/latest/download/Kothok-portable.zip"><b>⬇ ডাউনলোড করুন (Kothok-portable.zip)</b></a>
 </p>
 
-<p align="center"><img src="website/public/screenshot-light.png" width="560" alt="Kothok settings window"></p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="website/public/screenshot-dark.png">
+    <img src="website/public/screenshot-light.png" width="680" alt="Kothok settings window">
+  </picture>
+</p>
 
 ---
 
