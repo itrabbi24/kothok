@@ -136,7 +136,7 @@ legacy/              পুরোনো v1 কোড, রেফারেন্�
 
    বা `gh` CLI দিয়ে:
    ```powershell
-   gh release create v2.5.0 dist\Kothok-portable.zip dist\Kothok-update.zip --title "Kothok v2.5.0" --notes "..."
+   gh release create v2.6.0 dist\Kothok-portable.zip dist\Kothok-update.zip --title "Kothok v2.6.0" --notes "..."
    ```
 4. যাদের পিসিতে Kothok চলছে, তারা কয়েক ঘণ্টার মধ্যে নিজে থেকেই আপডেট পেয়ে যাবে।
 

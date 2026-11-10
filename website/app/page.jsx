@@ -113,8 +113,8 @@ export default function Home() {
               </p>
             </div>
             <figure className="shot">
-              <img className="only-light" src="/screenshot-light.png" alt="Kothok-এর সেটিংস উইন্ডো" width="700" height="874" />
-              <img className="only-dark" src="/screenshot-dark.png" alt="Kothok-এর সেটিংস উইন্ডো (ডার্ক থিম)" width="700" height="874" />
+              <img className="only-light" src="/screenshot-light.png" alt="Kothok-এর সেটিংস উইন্ডো" width="860" height="660" />
+              <img className="only-dark" src="/screenshot-dark.png" alt="Kothok-এর সেটিংস উইন্ডো (ডার্ক থিম)" width="860" height="660" />
               <figcaption>কথক-এর সেটিংস উইন্ডো</figcaption>
             </figure>
           </div>

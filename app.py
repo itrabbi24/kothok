@@ -30,7 +30,7 @@ import numpy as np
 APP_NAME = "Kothok"          # কথক - "the one who speaks"
 APP_BN = "কথক"
 APP_ID = "Kothok"
-VERSION = "2.5.0"
+VERSION = "2.6.0"
 WEBSITE = "https://rotexit.com"
 UPDATE_REPO = "itrabbi24/kothok"   # GitHub releases are checked for new versions
 UPDATE_ASSET = "Kothok-update.zip"  # app-only zip (no models) attached to every release
@@ -1307,7 +1307,7 @@ class App:
         import customtkinter as ctk
         r = self.root
         r.title(f"{APP_NAME}")
-        r.geometry("700x930"); r.minsize(640, 870)  # was 700x880 / 640x820 before the Popup row
+        r.geometry("860x660"); r.minsize(820, 620)  # was 700x930 (single column)
         # customtkinter replaces the window icon ~200ms after start, so set ours after that
         # (frozen builds keep bundled data in sys._MEIPASS = the _internal folder)
         ico = Path(getattr(sys, "_MEIPASS", ROOT)) / "app.ico"
@@ -1324,94 +1324,101 @@ class App:
         F = lambda size, weight="normal": ctk.CTkFont(family="Segoe UI", size=size, weight=weight)
         BN = lambda size, weight="normal": ctk.CTkFont(family="Nirmala UI", size=size, weight=weight)
 
+        # Compact two-column layout (v2.6). The previous single-column layout (one card per row,
+        # 700x930) is kept below in _build_window_v1_reference for reference.
         outer = ctk.CTkFrame(r, fg_color=C_BG, corner_radius=0)
         outer.pack(fill="both", expand=True)
-        outer.grid_columnconfigure(0, weight=1)
+        outer.grid_columnconfigure((0, 1), weight=1, uniform="col")
 
         # ---- header
-        head = ctk.CTkFrame(outer, fg_color="transparent"); head.grid(row=0, column=0, sticky="ew", padx=24, pady=(22, 6))
+        head = ctk.CTkFrame(outer, fg_color="transparent")
+        head.grid(row=0, column=0, columnspan=2, sticky="ew", padx=20, pady=(16, 6))
         head.grid_columnconfigure(1, weight=1)
         try:
-            self._logo = ctk.CTkImage(make_icon("idle", 128), size=(52, 52))
-            ctk.CTkLabel(head, image=self._logo, text="").grid(row=0, column=0, rowspan=2, padx=(0, 14))
+            self._logo = ctk.CTkImage(make_icon("idle", 128), size=(44, 44))
+            ctk.CTkLabel(head, image=self._logo, text="").grid(row=0, column=0, rowspan=2, padx=(0, 12))
         except Exception:
             pass
-        ctk.CTkLabel(head, text=f"{APP_BN}  Kothok", font=BN(26, "bold"), text_color=C_TEXT).grid(row=0, column=1, sticky="sw")
+        ctk.CTkLabel(head, text=f"{APP_BN}  Kothok", font=BN(22, "bold"), text_color=C_TEXT).grid(row=0, column=1, sticky="sw")
         ctk.CTkLabel(head, text="Offline dictation • Bangla + English • anywhere on Windows",
                      font=F(12), text_color=C_MUTED).grid(row=1, column=1, sticky="nw")
         self.chip = ctk.CTkLabel(head, text="  Loading…  ", font=F(12, "bold"), corner_radius=12,
                                  fg_color=C_AMBER, text_color="#1a1a1a", height=26)
         self.chip.grid(row=0, column=2, rowspan=2, sticky="e")
 
-        def card(row, title, subtitle=None):
-            c = ctk.CTkFrame(outer, fg_color=C_CARD, corner_radius=14, border_width=1, border_color=C_BORDER)
-            c.grid(row=row, column=0, sticky="ew", padx=24, pady=6)
+        def card(row, col, title, subtitle=None, span=1):
+            c = ctk.CTkFrame(outer, fg_color=C_CARD, corner_radius=12, border_width=1, border_color=C_BORDER)
+            c.grid(row=row, column=col, columnspan=span, sticky="nsew",
+                   padx=(20 if col == 0 else 6, 20 if col + span == 2 else 6), pady=6)
             c.grid_columnconfigure(1, weight=1)
-            ctk.CTkLabel(c, text=title, font=F(14, "bold"), text_color=C_TEXT).grid(
-                row=0, column=0, columnspan=3, sticky="w", padx=18, pady=(14, 0 if subtitle else 8))
+            ctk.CTkLabel(c, text=title, font=F(13, "bold"), text_color=C_TEXT).grid(
+                row=0, column=0, columnspan=3, sticky="w", padx=16, pady=(12, 0 if subtitle else 6))
             if subtitle:
                 ctk.CTkLabel(c, text=subtitle, font=F(11), text_color=C_MUTED, justify="left").grid(
-                    row=1, column=0, columnspan=3, sticky="w", padx=18, pady=(0, 8))
+                    row=1, column=0, columnspan=3, sticky="w", padx=16, pady=(0, 6))
             return c
 
-        def label(c, row, text):
-            ctk.CTkLabel(c, text=text, font=F(12), text_color=C_MUTED, width=110, anchor="w").grid(
-                row=row, column=0, sticky="w", padx=(18, 8), pady=6)
+        def label(c, row, text, pady=5):
+            ctk.CTkLabel(c, text=text, font=F(12), text_color=C_MUTED, width=82, anchor="w").grid(
+                row=row, column=0, sticky="w", padx=(16, 6), pady=pady)
 
-        # ---- shortcut card
-        c = card(1, "Shortcut", "কার্সর যেখানে রাখবেন, shortcut চেপে কথা বলুন — লেখা সেখানেই বসে যাবে।")
+        def segmented(c, row, values, var, command, last=False):
+            ctk.CTkSegmentedButton(c, values=values, variable=var, font=F(12),
+                                   selected_color=C_SEL, selected_hover_color=C_SEL_H, text_color=C_TEXT,
+                                   unselected_color=C_KEY, fg_color=C_KEY, command=command).grid(
+                row=row, column=1, columnspan=2, sticky="w", padx=(0, 16), pady=(5, 14 if last else 5))
+
+        save = lambda _v=None: self.save_settings(quiet=True)
+
+        # ---- shortcut (left)
+        c = card(1, 0, "Shortcut", "Cursor রেখে shortcut চেপে কথা বলুন।")
         self.hotkey_var = tk.StringVar(value=self.cfg["hotkey"])
-        self.hotkey_lbl = ctk.CTkLabel(c, textvariable=self.hotkey_var, font=ctk.CTkFont("Consolas", 20, "bold"),
-                                       fg_color=C_KEY, corner_radius=10, text_color=C_TEXT, height=44, width=220)
-        self.hotkey_lbl.grid(row=2, column=0, columnspan=2, sticky="w", padx=18, pady=(2, 8))
-        self.capture_btn = ctk.CTkButton(c, text="Change shortcut", command=self.begin_capture, width=150,
-                                         height=36, fg_color=C_ACCENT, hover_color=C_ACCENT_H, font=F(12, "bold"))
-        self.capture_btn.grid(row=2, column=2, sticky="e", padx=18)
+        self.hotkey_lbl = ctk.CTkLabel(c, textvariable=self.hotkey_var, font=ctk.CTkFont("Consolas", 18, "bold"),
+                                       fg_color=C_KEY, corner_radius=10, text_color=C_TEXT, height=38, width=150)
+        self.hotkey_lbl.grid(row=2, column=0, columnspan=2, sticky="w", padx=16, pady=(2, 4))
+        self.capture_btn = ctk.CTkButton(c, text="Change shortcut", command=self.begin_capture, width=140,
+                                         height=34, fg_color=C_ACCENT, hover_color=C_ACCENT_H, font=F(12, "bold"))
+        self.capture_btn.grid(row=2, column=2, sticky="e", padx=16)
         label(c, 3, "Mode")
         self.mode_map = {"Hold to talk": "hold", "Press to start / stop": "toggle"}
         self.mode_var = tk.StringVar(value={v: k for k, v in self.mode_map.items()}[self.cfg["mode"]])
-        ctk.CTkSegmentedButton(c, values=list(self.mode_map), variable=self.mode_var, font=F(12),
-                               selected_color=C_SEL, selected_hover_color=C_SEL_H, text_color=C_TEXT, unselected_color=C_KEY, fg_color=C_KEY,
-                               command=lambda _v: self.save_settings(quiet=True)).grid(
-            row=3, column=1, columnspan=2, sticky="w", padx=(0, 18), pady=(6, 16))
+        segmented(c, 3, list(self.mode_map), self.mode_var, save, last=True)
 
-        # ---- recognition card
-        c = card(2, "Recognition", "সব কিছু আপনার PC-তেই চলে — internet বা cloud লাগে না।")
+        # ---- recognition (right)
+        c = card(1, 1, "Recognition", "সব কিছু আপনার PC-তেই চলে — internet লাগে না।")
         label(c, 2, "Engine")
         self.engine_map = {"Bangla + English": "mixed", "Bangla only (fast)": "bangla"}
         self.engine_var = tk.StringVar(value={v: k for k, v in self.engine_map.items()}[self.cfg["engine"]])
-        ctk.CTkSegmentedButton(c, values=list(self.engine_map), variable=self.engine_var, font=F(12),
-                               selected_color=C_SEL, selected_hover_color=C_SEL_H, text_color=C_TEXT, unselected_color=C_KEY, fg_color=C_KEY,
-                               command=lambda _v: self.save_settings(quiet=True)).grid(
-            row=2, column=1, columnspan=2, sticky="w", padx=(0, 18), pady=6)
+        segmented(c, 2, list(self.engine_map), self.engine_var, save)
         self.lang_var = tk.StringVar(value=LANG_LABELS.get(self.cfg["language"], LANG_LABELS["auto"]))
-        # Language picker disabled: it only applied to the old turbo engine; "Bangla + English" now
-        # detects English phrases automatically.
-        # label(c, 3, "Language")
-        # ctk.CTkOptionMenu(c, values=list(LANG_LABELS.values()), variable=self.lang_var, font=F(12),
-        #                   fg_color=C_KEY, button_color=C_KEY, button_hover_color=C_BORDER, width=260,
-        #                   command=lambda _v: self.save_settings(quiet=True)).grid(
-        #     row=3, column=1, columnspan=2, sticky="w", pady=6)
-        label(c, 4, "Microphone")
+        # (Language picker stays disabled - see _build_window_v1_reference)
+        label(c, 3, "Microphone")
         self.mics = self.list_mics()
         self.mic_var = tk.StringVar(value=self.cfg["device"] or "System default")
         ctk.CTkOptionMenu(c, values=["System default"] + self.mics, variable=self.mic_var, font=F(12),
-                          fg_color=C_KEY, button_color=C_KEY, button_hover_color=C_BORDER, width=380, text_color=C_TEXT,
+                          fg_color=C_KEY, button_color=C_KEY, button_hover_color=C_BORDER, width=250, text_color=C_TEXT,
                           dropdown_fg_color=C_CARD, dropdown_text_color=C_TEXT, dropdown_hover_color=C_KEY,
-                          dynamic_resizing=False, command=lambda _v: self.save_settings(quiet=True)).grid(
-            row=4, column=1, columnspan=2, sticky="w", pady=(6, 16))
+                          dynamic_resizing=False, command=save).grid(
+            row=3, column=1, columnspan=2, sticky="w", padx=(0, 16), pady=(5, 14))
 
-        # ---- behaviour card
-        c = card(3, "Behaviour")
+        # ---- settings (full width: choices left, switches right)
+        c = card(2, 0, "Settings", span=2)
+        c.grid_columnconfigure(1, weight=0)
+        c.grid_columnconfigure(3, weight=1)
         label(c, 1, "Insert by")
         self.output_map = {"Paste (recommended)": "paste", "Type characters": "type"}
         self.output_var = tk.StringVar(value={v: k for k, v in self.output_map.items()}[self.cfg["output"]])
-        ctk.CTkSegmentedButton(c, values=list(self.output_map), variable=self.output_var, font=F(12),
-                               selected_color=C_SEL, selected_hover_color=C_SEL_H, text_color=C_TEXT, unselected_color=C_KEY, fg_color=C_KEY,
-                               command=lambda _v: self.save_settings(quiet=True)).grid(
-            row=1, column=1, columnspan=2, sticky="w", pady=6)
-        sw = ctk.CTkFrame(c, fg_color="transparent"); sw.grid(row=2, column=0, columnspan=3, sticky="ew", padx=18, pady=(4, 14))
-        sw.grid_columnconfigure((0, 1), weight=1)
+        segmented(c, 1, list(self.output_map), self.output_var, save)
+        label(c, 2, "Theme")
+        self.theme_var = tk.StringVar(value=THEMES[self.cfg.get("theme", "light")])
+        segmented(c, 2, list(THEMES.values()), self.theme_var,
+                  lambda v: self.set_theme({b: a for a, b in THEMES.items()}[v]))
+        label(c, 3, "Popup")
+        self.pos_var = tk.StringVar(value=POSITIONS[self.cfg.get("popup_position", "bottom-center")])
+        segmented(c, 3, list(POSITIONS.values()), self.pos_var,
+                  lambda v: self.set_position({b: a for a, b in POSITIONS.items()}[v]), last=True)
+        sw = ctk.CTkFrame(c, fg_color="transparent")
+        sw.grid(row=1, column=3, rowspan=3, sticky="ne", padx=(10, 16), pady=(4, 12))
         self.restore_var = tk.BooleanVar(value=self.cfg["restore_clipboard"])
         self.space_var = tk.BooleanVar(value=self.cfg["trailing_space"])
         self.sounds_var = tk.BooleanVar(value=self.cfg["sounds"])
@@ -1421,44 +1428,164 @@ class App:
                                          ("Sound feedback", self.sounds_var),
                                          ("Start with Windows", self.autostart_var))):
             ctk.CTkSwitch(sw, text=text, variable=var, font=F(12), progress_color=C_ACCENT, text_color=C_TEXT,
-                          command=lambda: self.save_settings(quiet=True)).grid(
-                row=i // 2, column=i % 2, sticky="w", pady=5)
-        label(c, 3, "Theme")
-        self.theme_var = tk.StringVar(value=THEMES[self.cfg.get("theme", "light")])
-        ctk.CTkSegmentedButton(c, values=list(THEMES.values()), variable=self.theme_var, font=F(12),
-                               selected_color=C_SEL, selected_hover_color=C_SEL_H, text_color=C_TEXT, unselected_color=C_KEY, fg_color=C_KEY,
-                               command=lambda v: self.set_theme({b: a for a, b in THEMES.items()}[v])).grid(
-            row=3, column=1, columnspan=2, sticky="w", pady=(0, 8))
-        label(c, 4, "Popup")
-        self.pos_var = tk.StringVar(value=POSITIONS[self.cfg.get("popup_position", "bottom-center")])
-        ctk.CTkSegmentedButton(c, values=list(POSITIONS.values()), variable=self.pos_var, font=F(12),
-                               selected_color=C_SEL, selected_hover_color=C_SEL_H, text_color=C_TEXT, unselected_color=C_KEY, fg_color=C_KEY,
-                               command=lambda v: self.set_position({b: a for a, b in POSITIONS.items()}[v])).grid(
-            row=4, column=1, columnspan=2, sticky="w", pady=(0, 14))
+                          command=save).grid(row=i, column=0, sticky="w", pady=4)
 
-        # ---- history card
-        c = card(4, "Recent dictations", "এখানে click করে shortcut চেপে test করতে পারেন।")
-        c.grid_rowconfigure(2, weight=1)
-        c.grid_configure(sticky="nsew"); outer.grid_rowconfigure(4, weight=1)
-        self.text = ctk.CTkTextbox(c, height=70, font=BN(15), fg_color=C_KEY, text_color=C_TEXT,
+        # ---- recent dictations (full width, compact)
+        c = card(3, 0, "Recent dictations", span=2)
+        c.grid_rowconfigure(1, weight=1)
+        outer.grid_rowconfigure(3, weight=1)
+        bf = ctk.CTkFrame(c, fg_color="transparent")
+        bf.grid(row=0, column=2, sticky="e", padx=16, pady=(10, 4))
+        ctk.CTkButton(bf, text="Copy last", width=90, height=28, command=self.copy_last, fg_color=C_KEY,
+                      text_color=C_TEXT, hover_color=C_BORDER, font=F(12)).pack(side="left")
+        ctk.CTkButton(bf, text="Clear", width=70, height=28, command=lambda: self.text.delete("1.0", "end"),
+                      fg_color=C_KEY, hover_color=C_BORDER, text_color=C_TEXT, font=F(12)).pack(side="left", padx=(8, 0))
+        self.text = ctk.CTkTextbox(c, height=56, font=BN(14), fg_color=C_KEY, text_color=C_TEXT,
                                    border_width=0, corner_radius=10, wrap="word")
-        self.text.grid(row=2, column=0, columnspan=3, sticky="nsew", padx=18, pady=(0, 10))
-        bf = ctk.CTkFrame(c, fg_color="transparent"); bf.grid(row=3, column=0, columnspan=3, sticky="ew", padx=18, pady=(0, 14))
-        ctk.CTkButton(bf, text="Copy last", width=110, command=self.copy_last, fg_color=C_KEY, text_color=C_TEXT,
-                      hover_color=C_BORDER, font=F(12)).pack(side="left")
-        ctk.CTkButton(bf, text="Clear", width=80, command=lambda: self.text.delete("1.0", "end"),
-                      fg_color=C_KEY, hover_color=C_BORDER, text_color=C_TEXT, font=F(12)).pack(side="left", padx=8)
-        ctk.CTkButton(bf, text="Minimise to tray", width=150, command=self.hide_window, fg_color=C_ACCENT,
-                      hover_color=C_ACCENT_H, font=F(12, "bold")).pack(side="right")
+        self.text.grid(row=1, column=0, columnspan=3, sticky="nsew", padx=16, pady=(0, 14))
 
         # ---- footer
-        foot = ctk.CTkFrame(outer, fg_color="transparent"); foot.grid(row=5, column=0, sticky="ew", padx=24, pady=(4, 18))
+        foot = ctk.CTkFrame(outer, fg_color="transparent")
+        foot.grid(row=4, column=0, columnspan=2, sticky="ew", padx=20, pady=(2, 14))
         self.status_var = tk.StringVar(value="Starting…")
         ctk.CTkLabel(foot, textvariable=self.status_var, font=F(11), text_color=C_MUTED).pack(side="left")
         link = ctk.CTkLabel(foot, text=f"v{VERSION}  •  Developed by rotexit.com", font=F(11, "bold"),
                             text_color=C_ACCENT, cursor="hand2")
+        ctk.CTkButton(foot, text="Minimise to tray", width=140, height=30, command=self.hide_window,
+                      fg_color=C_ACCENT, hover_color=C_ACCENT_H, font=F(12, "bold")).pack(side="right", padx=(12, 0))
         link.pack(side="right")
         link.bind("<Button-1>", lambda e: os.startfile(WEBSITE))
+
+    def _build_window_v1_reference(self):  # pragma: no cover - old layout, not called
+        """Previous single-column settings layout, kept for reference."""
+        return
+        # outer = ctk.CTkFrame(r, fg_color=C_BG, corner_radius=0)
+        # outer.pack(fill="both", expand=True)
+        # outer.grid_columnconfigure(0, weight=1)
+
+        # # ---- header
+        # head = ctk.CTkFrame(outer, fg_color="transparent"); head.grid(row=0, column=0, sticky="ew", padx=24, pady=(22, 6))
+        # head.grid_columnconfigure(1, weight=1)
+        # try:
+        #     self._logo = ctk.CTkImage(make_icon("idle", 128), size=(52, 52))
+        #     ctk.CTkLabel(head, image=self._logo, text="").grid(row=0, column=0, rowspan=2, padx=(0, 14))
+        # except Exception:
+        #     pass
+        # ctk.CTkLabel(head, text=f"{APP_BN}  Kothok", font=BN(26, "bold"), text_color=C_TEXT).grid(row=0, column=1, sticky="sw")
+        # ctk.CTkLabel(head, text="Offline dictation • Bangla + English • anywhere on Windows",
+        #              font=F(12), text_color=C_MUTED).grid(row=1, column=1, sticky="nw")
+        # self.chip = ctk.CTkLabel(head, text="  Loading…  ", font=F(12, "bold"), corner_radius=12,
+        #                          fg_color=C_AMBER, text_color="#1a1a1a", height=26)
+        # self.chip.grid(row=0, column=2, rowspan=2, sticky="e")
+
+        # def card(row, title, subtitle=None):
+        #     c = ctk.CTkFrame(outer, fg_color=C_CARD, corner_radius=14, border_width=1, border_color=C_BORDER)
+        #     c.grid(row=row, column=0, sticky="ew", padx=24, pady=6)
+        #     c.grid_columnconfigure(1, weight=1)
+        #     ctk.CTkLabel(c, text=title, font=F(14, "bold"), text_color=C_TEXT).grid(
+        #         row=0, column=0, columnspan=3, sticky="w", padx=18, pady=(14, 0 if subtitle else 8))
+        #     if subtitle:
+        #         ctk.CTkLabel(c, text=subtitle, font=F(11), text_color=C_MUTED, justify="left").grid(
+        #             row=1, column=0, columnspan=3, sticky="w", padx=18, pady=(0, 8))
+        #     return c
+
+        # def label(c, row, text):
+        #     ctk.CTkLabel(c, text=text, font=F(12), text_color=C_MUTED, width=110, anchor="w").grid(
+        #         row=row, column=0, sticky="w", padx=(18, 8), pady=6)
+
+        # # ---- shortcut card
+        # c = card(1, "Shortcut", "কার্সর যেখানে রাখবেন, shortcut চেপে কথা বলুন — লেখা সেখানেই বসে যাবে।")
+        # self.hotkey_var = tk.StringVar(value=self.cfg["hotkey"])
+        # self.hotkey_lbl = ctk.CTkLabel(c, textvariable=self.hotkey_var, font=ctk.CTkFont("Consolas", 20, "bold"),
+        #                                fg_color=C_KEY, corner_radius=10, text_color=C_TEXT, height=44, width=220)
+        # self.hotkey_lbl.grid(row=2, column=0, columnspan=2, sticky="w", padx=18, pady=(2, 8))
+        # self.capture_btn = ctk.CTkButton(c, text="Change shortcut", command=self.begin_capture, width=150,
+        #                                  height=36, fg_color=C_ACCENT, hover_color=C_ACCENT_H, font=F(12, "bold"))
+        # self.capture_btn.grid(row=2, column=2, sticky="e", padx=18)
+        # label(c, 3, "Mode")
+        # self.mode_map = {"Hold to talk": "hold", "Press to start / stop": "toggle"}
+        # self.mode_var = tk.StringVar(value={v: k for k, v in self.mode_map.items()}[self.cfg["mode"]])
+        # ctk.CTkSegmentedButton(c, values=list(self.mode_map), variable=self.mode_var, font=F(12),
+        #                        selected_color=C_SEL, selected_hover_color=C_SEL_H, text_color=C_TEXT, unselected_color=C_KEY, fg_color=C_KEY,
+        #                        command=lambda _v: self.save_settings(quiet=True)).grid(
+        #     row=3, column=1, columnspan=2, sticky="w", padx=(0, 18), pady=(6, 16))
+
+        # # ---- recognition card
+        # c = card(2, "Recognition", "সব কিছু আপনার PC-তেই চলে — internet বা cloud লাগে না।")
+        # label(c, 2, "Engine")
+        # self.engine_map = {"Bangla + English": "mixed", "Bangla only (fast)": "bangla"}
+        # self.engine_var = tk.StringVar(value={v: k for k, v in self.engine_map.items()}[self.cfg["engine"]])
+        # ctk.CTkSegmentedButton(c, values=list(self.engine_map), variable=self.engine_var, font=F(12),
+        #                        selected_color=C_SEL, selected_hover_color=C_SEL_H, text_color=C_TEXT, unselected_color=C_KEY, fg_color=C_KEY,
+        #                        command=lambda _v: self.save_settings(quiet=True)).grid(
+        #     row=2, column=1, columnspan=2, sticky="w", padx=(0, 18), pady=6)
+        # self.lang_var = tk.StringVar(value=LANG_LABELS.get(self.cfg["language"], LANG_LABELS["auto"]))
+        # # Language picker disabled: it only applied to the old turbo engine; "Bangla + English" now
+        # # detects English phrases automatically.
+        # # label(c, 3, "Language")
+        # # ctk.CTkOptionMenu(c, values=list(LANG_LABELS.values()), variable=self.lang_var, font=F(12),
+        # #                   fg_color=C_KEY, button_color=C_KEY, button_hover_color=C_BORDER, width=260,
+        # #                   command=lambda _v: self.save_settings(quiet=True)).grid(
+        # #     row=3, column=1, columnspan=2, sticky="w", pady=6)
+        # label(c, 4, "Microphone")
+        # self.mics = self.list_mics()
+        # self.mic_var = tk.StringVar(value=self.cfg["device"] or "System default")
+        # ctk.CTkOptionMenu(c, values=["System default"] + self.mics, variable=self.mic_var, font=F(12),
+        #                   fg_color=C_KEY, button_color=C_KEY, button_hover_color=C_BORDER, width=380, text_color=C_TEXT,
+        #                   dropdown_fg_color=C_CARD, dropdown_text_color=C_TEXT, dropdown_hover_color=C_KEY,
+        #                   dynamic_resizing=False, command=lambda _v: self.save_settings(quiet=True)).grid(
+        #     row=4, column=1, columnspan=2, sticky="w", pady=(6, 16))
+
+        # # ---- behaviour card
+        # c = card(3, "Behaviour")
+        # label(c, 1, "Insert by")
+        # self.output_map = {"Paste (recommended)": "paste", "Type characters": "type"}
+        # self.output_var = tk.StringVar(value={v: k for k, v in self.output_map.items()}[self.cfg["output"]])
+        # ctk.CTkSegmentedButton(c, values=list(self.output_map), variable=self.output_var, font=F(12),
+        #                        selected_color=C_SEL, selected_hover_color=C_SEL_H, text_color=C_TEXT, unselected_color=C_KEY, fg_color=C_KEY,
+        #                        command=lambda _v: self.save_settings(quiet=True)).grid(
+        #     row=1, column=1, columnspan=2, sticky="w", pady=6)
+        # sw = ctk.CTkFrame(c, fg_color="transparent"); sw.grid(row=2, column=0, columnspan=3, sticky="ew", padx=18, pady=(4, 14))
+        # sw.grid_columnconfigure((0, 1), weight=1)
+        # self.restore_var = tk.BooleanVar(value=self.cfg["restore_clipboard"])
+        # self.space_var = tk.BooleanVar(value=self.cfg["trailing_space"])
+        # self.sounds_var = tk.BooleanVar(value=self.cfg["sounds"])
+        # self.autostart_var = tk.BooleanVar(value=self.cfg["autostart"])
+        # for i, (text, var) in enumerate((("Restore clipboard after paste", self.restore_var),
+        #                                  ("Add a space after text", self.space_var),
+        #                                  ("Sound feedback", self.sounds_var),
+        #                                  ("Start with Windows", self.autostart_var))):
+        #     ctk.CTkSwitch(sw, text=text, variable=var, font=F(12), progress_color=C_ACCENT, text_color=C_TEXT,
+        #                   command=lambda: self.save_settings(quiet=True)).grid(
+        #         row=i // 2, column=i % 2, sticky="w", pady=5)
+        # label(c, 3, "Theme")
+        # self.theme_var = tk.StringVar(value=THEMES[self.cfg.get("theme", "light")])
+        # ctk.CTkSegmentedButton(c, values=list(THEMES.values()), variable=self.theme_var, font=F(12),
+        #                        selected_color=C_SEL, selected_hover_color=C_SEL_H, text_color=C_TEXT, unselected_color=C_KEY, fg_color=C_KEY,
+        #                        command=lambda v: self.set_theme({b: a for a, b in THEMES.items()}[v])).grid(
+        #     row=3, column=1, columnspan=2, sticky="w", pady=(0, 8))
+        # label(c, 4, "Popup")
+        # self.pos_var = tk.StringVar(value=POSITIONS[self.cfg.get("popup_position", "bottom-center")])
+        # ctk.CTkSegmentedButton(c, values=list(POSITIONS.values()), variable=self.pos_var, font=F(12),
+        #                        selected_color=C_SEL, selected_hover_color=C_SEL_H, text_color=C_TEXT, unselected_color=C_KEY, fg_color=C_KEY,
+        #                        command=lambda v: self.set_position({b: a for a, b in POSITIONS.items()}[v])).grid(
+        #     row=4, column=1, columnspan=2, sticky="w", pady=(0, 14))
+
+        # # ---- history card
+        # c = card(4, "Recent dictations", "এখানে click করে shortcut চেপে test করতে পারেন।")
+        # c.grid_rowconfigure(2, weight=1)
+        # c.grid_configure(sticky="nsew"); outer.grid_rowconfigure(4, weight=1)
+        # self.text = ctk.CTkTextbox(c, height=70, font=BN(15), fg_color=C_KEY, text_color=C_TEXT,
+        #                            border_width=0, corner_radius=10, wrap="word")
+        # self.text.grid(row=2, column=0, columnspan=3, sticky="nsew", padx=18, pady=(0, 10))
+        # bf = ctk.CTkFrame(c, fg_color="transparent"); bf.grid(row=3, column=0, columnspan=3, sticky="ew", padx=18, pady=(0, 14))
+        # ctk.CTkButton(bf, text="Copy last", width=110, command=self.copy_last, fg_color=C_KEY, text_color=C_TEXT,
+        #               hover_color=C_BORDER, font=F(12)).pack(side="left")
+        # ctk.CTkButton(bf, text="Clear", width=80, command=lambda: self.text.delete("1.0", "end"),
+        #               fg_color=C_KEY, hover_color=C_BORDER, text_color=C_TEXT, font=F(12)).pack(side="left", padx=8)
+        # ctk.CTkButton(bf, text="Minimise to tray", width=150, command=self.hide_window, fg_color=C_ACCENT,
+        #               hover_color=C_ACCENT_H, font=F(12, "bold")).pack(side="right")
+
 
     def list_mics(self):
         try:
@@ -1546,6 +1673,24 @@ class App:
 
     def show_window(self):
         self.root.deiconify(); self.root.lift(); self.root.focus_force()
+        if not getattr(self, "_centred", False):
+            self._centred = True
+            self.root.after(60, self.centre_window)
+
+    def centre_window(self):
+        """Centre the window in the work area (screen minus taskbar), using real pixel sizes."""
+        try:
+            self.root.update_idletasks()
+            hwnd = user32.GetParent(self.root.winfo_id()) or self.root.winfo_id()
+            win, wa = wintypes.RECT(), wintypes.RECT()
+            user32.GetWindowRect(hwnd, ctypes.byref(win))
+            user32.SystemParametersInfoW(0x30, 0, ctypes.byref(wa), 0)  # SPI_GETWORKAREA
+            w, h = win.right - win.left, win.bottom - win.top
+            x = wa.left + max(0, (wa.right - wa.left - w) // 2)
+            y = wa.top + max(0, (wa.bottom - wa.top - h) // 2)
+            user32.SetWindowPos(hwnd, None, x, y, 0, 0, 0x1 | 0x4 | 0x10)  # NOSIZE | NOZORDER | NOACTIVATE
+        except Exception:
+            log.exception("centre window")
 
     def hide_window(self):
         self.root.withdraw()
