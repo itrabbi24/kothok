@@ -30,7 +30,7 @@ import numpy as np
 APP_NAME = "Kothok"          # কথক - "the one who speaks"
 APP_BN = "কথক"
 APP_ID = "Kothok"
-VERSION = "2.2.0"
+VERSION = "2.3.0"
 WEBSITE = "https://rotexit.com"
 UPDATE_REPO = "itrabbi24/kothok"   # GitHub releases are checked for new versions
 UPDATE_ASSET = "Kothok-update.zip"  # app-only zip (no models) attached to every release
@@ -403,9 +403,9 @@ RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 def autostart_command():
     if FROZEN:
-        return f'"{sys.executable}"'
+        return f'"{sys.executable}" --tray'
     pyw = Path(sys.executable).with_name("pythonw.exe")
-    return f'"{pyw if pyw.exists() else sys.executable}" "{Path(__file__).resolve()}"'
+    return f'"{pyw if pyw.exists() else sys.executable}" "{Path(__file__).resolve()}" --tray'
 
 
 def set_autostart(enabled: bool):
@@ -503,7 +503,7 @@ class Updater:
             f'tasklist /FI "PID eq {os.getpid()}" | find "{os.getpid()}" >nul && (timeout /t 1 /nobreak >nul & goto wait)',
             f'robocopy "{src}" "{ROOT}" /E /XD models /XF config.json app.log /R:10 /W:1 /NFL /NDL /NJH /NJS >nul',
             f'rmdir /s /q "{self.staging}"',
-            f'start "" "{ROOT / "Kothok.exe"}"',
+            f'start "" "{ROOT / "Kothok.exe"}" --tray',
             'del "%~f0"',
         ]
         script.write_text("".join(x + chr(13) + chr(10) for x in lines), encoding="utf-8")
@@ -943,11 +943,20 @@ class App:
         root.protocol("WM_DELETE_WINDOW", self.hide_window)
         root.after(20, self.pump)
         self.updater.start()
-        if self.cfg.get("first_run"):
+        # Opened by the user -> show the window. Started with Windows (--tray) -> stay in the tray, but say so.
+        # (was: window only on first run, otherwise straight to the tray with no message)
+        self.tray_hint_shown = False
+        if self.cfg.get("first_run") or "--tray" not in sys.argv:
             self.cfg["first_run"] = False; self.persist()
             self.show_window()
         else:
             root.withdraw()
+            root.after(2500, lambda: self.notify(f"Kothok চলছে — {self.hotkey_hint()}। খুলতে tray icon-এ ক্লিক করুন।"))
+        if self.cfg.get("autostart"):
+            try:
+                set_autostart(True)  # refresh the startup entry (older versions had no --tray)
+            except OSError:
+                pass
 
     # ---------------------------------------------------------------- engine
     def load_engine_async(self):
@@ -1474,6 +1483,9 @@ class App:
 
     def hide_window(self):
         self.root.withdraw()
+        if not self.tray_hint_shown:
+            self.tray_hint_shown = True
+            self.notify("Kothok tray-তে চলছে। আবার খুলতে ঘড়ির পাশের icon-এ ক্লিক করুন।")
 
     def quit(self):
         if self.recording:
