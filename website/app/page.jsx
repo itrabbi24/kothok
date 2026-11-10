@@ -144,6 +144,24 @@ export default function Home() {
           </div>
         </section>
 
+        <section id="video" className="section">
+          <div className="wrap narrow center">
+            <h2>দেখুন কীভাবে কাজ করে</h2>
+            <div className="video">
+              <iframe
+                src="https://www.youtube-nocookie.com/embed/Hz5dy29OMLA?rel=0"
+                title="কথক — ভয়েস টাইপিং ডেমো"
+                loading="lazy"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+            <p className="muted small">
+              <a href="https://youtube.com/shorts/Hz5dy29OMLA" className="accent">YouTube-এ দেখুন ↗</a>
+            </p>
+          </div>
+        </section>
+
         <section className="section final">
           <div className="wrap narrow center">
             <img src="/logo.png" alt="" width="84" height="84" />
