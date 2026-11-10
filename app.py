@@ -30,7 +30,7 @@ import numpy as np
 APP_NAME = "Kothok"          # কথক - "the one who speaks"
 APP_BN = "কথক"
 APP_ID = "Kothok"
-VERSION = "2.4.0"
+VERSION = "2.5.0"
 WEBSITE = "https://rotexit.com"
 UPDATE_REPO = "itrabbi24/kothok"   # GitHub releases are checked for new versions
 UPDATE_ASSET = "Kothok-update.zip"  # app-only zip (no models) attached to every release
@@ -42,6 +42,8 @@ C_BG, C_CARD = ("#f4f7f5", "#0d1210"), ("#ffffff", "#141b18")
 C_BORDER, C_KEY = ("#dde5e0", "#24302b"), ("#eaf0ec", "#1b2420")
 C_TEXT, C_MUTED = ("#14201b", "#eef1f6"), ("#5f6b66", "#8b93a5")
 C_SEL, C_SEL_H = ("#bfe6cf", "#0f9d58"), ("#a9dcbe", "#0b7d46")   # selected segment (light tint / green)
+POSITIONS = {"bottom-center": "Bottom centre", "bottom-right": "Bottom right",
+             "bottom-left": "Bottom left", "top-center": "Top centre"}
 THEMES = {"light": "Light", "dark": "Dark", "system": "System"}
 C_ACCENT, C_ACCENT_H = "#0f9d58", "#0b7d46"   # Bangladesh green
 C_GREEN, C_AMBER, C_RED, C_GREY = "#22c55e", "#f59e0b", "#ef4444", "#6b7280"
@@ -377,6 +379,7 @@ DEFAULTS = {
     "autostart": False,
     "auto_update": True,         # silently download + install new GitHub releases
     "theme": "light",            # light | dark | system
+    "popup_position": "bottom-center",  # where the listening popup appears (see POSITIONS)
     "first_run": True,
 }
 
@@ -866,8 +869,8 @@ class Overlay:
         # live sound bars on the right, driven by the microphone level while listening
         self.level, self.heights = 0.0, [3.0] * 5
         self.bars = [self.c.create_rectangle(0, 0, 0, 0, fill="#22c55e", outline="") for _ in range(5)]
-        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
-        self.top.geometry(f"{self.W}x{self.H}+{(sw - self.W) // 2}+{sh - self.H - 90}")
+        # was always bottom centre: sw, sh = screen size; geometry(+{(sw - W) // 2}+{sh - H - 90})
+        self.place("bottom-center")
         self.top.update_idletasks()
         self.hwnd = user32.GetParent(self.top.winfo_id()) or self.top.winfo_id()
         GWL_EXSTYLE, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST = -20, 0x08000000, 0x80, 0x8
@@ -878,6 +881,21 @@ class Overlay:
         self.hide()
         self._tick()
         self._animate()
+
+    def place(self, position):
+        """Put the popup at a corner/edge of the work area (screen minus taskbar)."""
+        r = wintypes.RECT()
+        if not user32.SystemParametersInfoW(0x30, 0, ctypes.byref(r), 0):  # SPI_GETWORKAREA
+            r.left, r.top = 0, 0
+            r.right, r.bottom = self.top.winfo_screenwidth(), self.top.winfo_screenheight()
+        m = 16
+        x = {"bottom-right": r.right - self.W - m, "bottom-left": r.left + m}.get(
+            position, (r.left + r.right - self.W) // 2)
+        y = r.top + m if position == "top-center" else r.bottom - self.H - (m if position in ("bottom-right", "bottom-left") else 40)
+        self.top.geometry(f"{self.W}x{self.H}+{x}+{y}")
+        if getattr(self, "hwnd", None):  # Tk ignores geometry changes once Win32 has shown the window
+            SWP_NOSIZE, SWP_NOZORDER, SWP_NOACTIVATE = 1, 4, 0x10
+            user32.SetWindowPos(self.hwnd, None, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)
 
     def _pill(self, x1, y1, x2, y2, r, **kw):
         c = self.c
@@ -949,6 +967,7 @@ class App:
         self.updater = Updater(self)
 
         self.overlay = Overlay(root)
+        self.overlay.place(self.cfg.get("popup_position", "bottom-center"))
         self.hook = KeyboardHook(lambda ev: self.ui.put(("hook", ev)))
         try:
             self.hook.set_hotkey(self.cfg["hotkey"])
@@ -1184,6 +1203,10 @@ class App:
             Item("Pause shortcut", on(self.toggle_pause), checked=lambda i: self.paused),
             Item("Sound feedback", on(self.toggle_sounds), checked=lambda i: self.cfg["sounds"]),
             Item("Start with Windows", on(self.toggle_autostart), checked=lambda i: self.cfg["autostart"]),
+            Item("Popup position", Menu(*[
+                Item(label, on(lambda p=p: self.set_position(p)),
+                     checked=lambda i, p=p: self.cfg.get("popup_position", "bottom-center") == p, radio=True)
+                for p, label in POSITIONS.items()])),
             Item("Theme", Menu(*[
                 Item(label, on(lambda t=t: self.set_theme(t)),
                      checked=lambda i, t=t: self.cfg.get("theme", "light") == t, radio=True)
@@ -1239,6 +1262,14 @@ class App:
             return
         self.quit()
 
+    def set_position(self, pos):
+        self.cfg["popup_position"] = pos; self.persist()
+        self.overlay.place(pos)
+        if hasattr(self, "pos_var"):
+            self.pos_var.set(POSITIONS[pos])
+        if not self.recording and not self.busy:  # quick preview of the new spot
+            self.overlay.show("এখানে দেখাবে", "#22c55e"); self.root.after(1500, self.overlay.hide)
+
     def set_theme(self, theme):
         import customtkinter as ctk
         self.cfg["theme"] = theme; self.persist()
@@ -1276,7 +1307,7 @@ class App:
         import customtkinter as ctk
         r = self.root
         r.title(f"{APP_NAME}")
-        r.geometry("700x880"); r.minsize(640, 820)
+        r.geometry("700x930"); r.minsize(640, 870)  # was 700x880 / 640x820 before the Popup row
         # customtkinter replaces the window icon ~200ms after start, so set ours after that
         # (frozen builds keep bundled data in sys._MEIPASS = the _internal folder)
         ico = Path(getattr(sys, "_MEIPASS", ROOT)) / "app.ico"
@@ -1397,7 +1428,13 @@ class App:
         ctk.CTkSegmentedButton(c, values=list(THEMES.values()), variable=self.theme_var, font=F(12),
                                selected_color=C_SEL, selected_hover_color=C_SEL_H, text_color=C_TEXT, unselected_color=C_KEY, fg_color=C_KEY,
                                command=lambda v: self.set_theme({b: a for a, b in THEMES.items()}[v])).grid(
-            row=3, column=1, columnspan=2, sticky="w", pady=(0, 14))
+            row=3, column=1, columnspan=2, sticky="w", pady=(0, 8))
+        label(c, 4, "Popup")
+        self.pos_var = tk.StringVar(value=POSITIONS[self.cfg.get("popup_position", "bottom-center")])
+        ctk.CTkSegmentedButton(c, values=list(POSITIONS.values()), variable=self.pos_var, font=F(12),
+                               selected_color=C_SEL, selected_hover_color=C_SEL_H, text_color=C_TEXT, unselected_color=C_KEY, fg_color=C_KEY,
+                               command=lambda v: self.set_position({b: a for a, b in POSITIONS.items()}[v])).grid(
+            row=4, column=1, columnspan=2, sticky="w", pady=(0, 14))
 
         # ---- history card
         c = card(4, "Recent dictations", "এখানে click করে shortcut চেপে test করতে পারেন।")

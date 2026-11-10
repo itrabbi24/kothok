@@ -10,6 +10,8 @@ const features = [
   { icon: "🇧🇩", title: "বাংলা + English একসাথে", text: "\"আমি আজকে I want to make a coffee\" — যেভাবে কথা বলেন, সেভাবেই লেখা।" },
   { icon: "⌨️", title: "যেকোনো অ্যাপে", text: "Word, Chrome, Facebook, WhatsApp, VS Code — কার্সর যেখানে, লেখা সেখানে।" },
   { icon: "📦", title: "ইনস্টল লাগে না", text: "Portable — zip খুলে চালান। পেনড্রাইভে করে অন্য পিসিতেও নিয়ে যেতে পারবেন।" },
+  { icon: "🎚️", title: "লাইভ popup, যেখানে চান", text: "কথা বলার সময় সাউন্ড বার নড়ে। popup-টা নিচে মাঝখানে, ঘড়ির উপরে, বাম কোণে বা উপরে — যেখানে খুশি রাখুন।" },
+  { icon: "🌗", title: "লাইট / ডার্ক থিম", text: "লাইট, ডার্ক, অথবা Windows-এর থিমের সাথে মিলিয়ে — যেটা চোখে আরাম।" },
   { icon: "🔄", title: "নিজে থেকে আপডেট", text: "নতুন ভার্সন এলে ব্যাকগ্রাউন্ডে চুপচাপ আপডেট হয়ে যায়, আপনার সেটিংস ঠিক থাকে।" },
   { icon: "💚", title: "ফ্রি ও ওপেন সোর্স", text: "MIT লাইসেন্স। কোড GitHub-এ খোলা — দেখুন, শিখুন, অবদান রাখুন।" },
 ];
@@ -107,12 +109,12 @@ export default function Home() {
                 ))}
               </ol>
               <p className="muted small">
-                সেটিংস থেকে শর্টকাট, মোড, মাইক্রোফোন, ইঞ্জিন (বাংলা + English / শুধু বাংলা) আর থিম (লাইট / ডার্ক / ডিভাইস) সব বদলানো যায়।
+                সেটিংস থেকে শর্টকাট, মোড, মাইক্রোফোন, ইঞ্জিন (বাংলা + English / শুধু বাংলা) থিম (লাইট / ডার্ক / ডিভাইস) আর popup-এর জায়গা সব বদলানো যায়।
               </p>
             </div>
             <figure className="shot">
-              <img className="only-light" src="/screenshot-light.png" alt="Kothok-এর সেটিংস উইন্ডো" width="700" height="879" />
-              <img className="only-dark" src="/screenshot-dark.png" alt="Kothok-এর সেটিংস উইন্ডো (ডার্ক থিম)" width="700" height="879" />
+              <img className="only-light" src="/screenshot-light.png" alt="Kothok-এর সেটিংস উইন্ডো" width="700" height="874" />
+              <img className="only-dark" src="/screenshot-dark.png" alt="Kothok-এর সেটিংস উইন্ডো (ডার্ক থিম)" width="700" height="874" />
               <figcaption>কথক-এর সেটিংস উইন্ডো</figcaption>
             </figure>
           </div>

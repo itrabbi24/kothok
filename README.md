@@ -37,6 +37,8 @@
 - **Hold-to-talk** অথবা **Press to start/stop** — দুই রকম মোড।
 - **নিজের মতো শর্টকাট** সেট করা যায়।
 - **Silent auto update** — GitHub-এ নতুন ভার্সন এলে অ্যাপ নিজে থেকে চুপচাপ আপডেট হয়ে যায় (নিচে বিস্তারিত)।
+- **লাইভ popup** — কথা বলার সময় ছোট একটা popup-এ সাউন্ড বার নড়ে; popup-টা স্ক্রিনের কোথায় থাকবে তা নিজেই ঠিক করতে পারবেন।
+- **লাইট / ডার্ক / সিস্টেম থিম**।
 - Windows-এর সাথে চালু হওয়ার অপশন, শব্দ দিয়ে ফিডব্যাক, শেষ লেখা কপি করার অপশন।
 
 ## ব্যবহার করার নিয়ম
@@ -59,7 +61,7 @@
 | হলুদ | লিখছে (Transcribing) |
 | ধূসর | সমস্যা — সেটিংস/লগ দেখুন |
 
-Tray icon-এ right-click করলে পাবেন: dictation চালু/বন্ধ, শেষ লেখা কপি, engine, mode, শর্টকাট pause, sound, Start with Windows, Auto update, log ফাইল, Exit।
+Tray icon-এ right-click করলে পাবেন: dictation চালু/বন্ধ, শেষ লেখা কপি, engine, mode, শর্টকাট pause, sound, Start with Windows, Popup position, Theme, Auto update, log ফাইল, Exit।
 
 ### সেটিংস
 
@@ -69,6 +71,8 @@ Tray icon-এ right-click করলে পাবেন: dictation চালু/�
 | **Mode** | Hold to talk (চেপে ধরে বলা) / Press to start-stop (একবার চাপলে শুরু, আবার চাপলে শেষ) |
 | **Engine** | *Bangla + English* (ডিফল্ট) / *Bangla only (fast)* |
 | **Microphone** | কোন মাইক ব্যবহার হবে |
+| **Theme** | Light (ডিফল্ট) / Dark / System — Windows-এর থিমের সাথে মিলিয়ে |
+| **Popup** | কথা বলার সময় ছোট popup-টা কোথায় দেখাবে: নিচে মাঝখানে, ডানে ঘড়ির উপরে, বাম কোণে, বা উপরে মাঝখানে |
 | **Insert by** | *Paste* (দ্রুত, ক্লিপবোর্ড আগের মতো ফিরিয়ে দেয়) / *Type characters* (যেখানে paste চলে না) |
 
 সেটিংস `Kothok.exe`-এর পাশেই `config.json`-এ সেভ থাকে, তাই ফোল্ডার কপি করলে সেটিংসও সাথে যায়।
@@ -132,7 +136,7 @@ legacy/              পুরোনো v1 কোড, রেফারেন্�
 
    বা `gh` CLI দিয়ে:
    ```powershell
-   gh release create v2.4.0 dist\Kothok-portable.zip dist\Kothok-update.zip --title "Kothok v2.4.0" --notes "..."
+   gh release create v2.5.0 dist\Kothok-portable.zip dist\Kothok-update.zip --title "Kothok v2.5.0" --notes "..."
    ```
 4. যাদের পিসিতে Kothok চলছে, তারা কয়েক ঘণ্টার মধ্যে নিজে থেকেই আপডেট পেয়ে যাবে।
 
