@@ -30,7 +30,7 @@ import numpy as np
 APP_NAME = "Kothok"          # কথক - "the one who speaks"
 APP_BN = "কথক"
 APP_ID = "Kothok"
-VERSION = "2.3.1"
+VERSION = "2.3.2"
 WEBSITE = "https://rotexit.com"
 UPDATE_REPO = "itrabbi24/kothok"   # GitHub releases are checked for new versions
 UPDATE_ASSET = "Kothok-update.zip"  # app-only zip (no models) attached to every release
@@ -1517,12 +1517,12 @@ def main():
     except Exception:
         pass
     try:  # own taskbar identity, so Windows shows the Kothok icon instead of python/tk
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("rotexit.Kothok")
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)  # was "rotexit.Kothok" - shown as the toast heading
     except Exception:
         pass
     try:  # name + icon for notifications (otherwise Windows shows "rotexit.Kothok" with no icon)
         ico = Path(getattr(sys, "_MEIPASS", ROOT)) / "app.ico"
-        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\Classes\AppUserModelId\rotexit.Kothok") as k:
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, "Software\\Classes\\AppUserModelId\\" + APP_ID) as k:
             winreg.SetValueEx(k, "DisplayName", 0, winreg.REG_SZ, APP_NAME)
             if ico.exists():
                 winreg.SetValueEx(k, "IconUri", 0, winreg.REG_SZ, str(ico))
