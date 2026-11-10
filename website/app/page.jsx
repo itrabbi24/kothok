@@ -1,5 +1,6 @@
 import Demo from "./demo";
 import ReleaseInfo from "./release-info";
+import ThemeSwitch from "./theme-switch";
 
 const REPO = "https://github.com/itrabbi24/kothok";
 const DOWNLOAD = `${REPO}/releases/latest/download/Kothok-portable.zip`;
@@ -37,12 +38,15 @@ export default function Home() {
             <span className="bn">কথক</span>
             <span className="en">Kothok</span>
           </a>
+          <div className="nav-right">
           <nav>
             <a href="#features">বৈশিষ্ট্য</a>
             <a href="#how">ব্যবহার</a>
             <a href="#faq">প্রশ্নোত্তর</a>
             <a href={REPO} className="gh">GitHub</a>
           </nav>
+          <ThemeSwitch />
+          </div>
         </div>
       </header>
 
@@ -103,11 +107,12 @@ export default function Home() {
                 ))}
               </ol>
               <p className="muted small">
-                সেটিংস থেকে শর্টকাট, মোড, মাইক্রোফোন, ইঞ্জিন (বাংলা + English / শুধু বাংলা) সব বদলানো যায়।
+                সেটিংস থেকে শর্টকাট, মোড, মাইক্রোফোন, ইঞ্জিন (বাংলা + English / শুধু বাংলা) আর থিম (লাইট / ডার্ক / ডিভাইস) সব বদলানো যায়।
               </p>
             </div>
             <figure className="shot">
-              <img src="/screenshot-settings.png" alt="Kothok-এর সেটিংস উইন্ডো" width="700" height="656" />
+              <img className="only-light" src="/screenshot-light.png" alt="Kothok-এর সেটিংস উইন্ডো" width="700" height="879" />
+              <img className="only-dark" src="/screenshot-dark.png" alt="Kothok-এর সেটিংস উইন্ডো (ডার্ক থিম)" width="700" height="879" />
               <figcaption>কথক-এর সেটিংস উইন্ডো</figcaption>
             </figure>
           </div>

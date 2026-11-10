@@ -30,14 +30,19 @@ import numpy as np
 APP_NAME = "Kothok"          # কথক - "the one who speaks"
 APP_BN = "কথক"
 APP_ID = "Kothok"
-VERSION = "2.1.0"
+VERSION = "2.2.0"
 WEBSITE = "https://rotexit.com"
 UPDATE_REPO = "itrabbi24/kothok"   # GitHub releases are checked for new versions
 UPDATE_ASSET = "Kothok-update.zip"  # app-only zip (no models) attached to every release
 
-# UI palette (dark, modern)
-C_BG, C_CARD, C_BORDER, C_KEY = "#0d1210", "#141b18", "#24302b", "#1b2420"
-C_TEXT, C_MUTED = "#eef1f6", "#8b93a5"
+# UI palette - (light, dark) pairs; customtkinter picks one from the appearance mode
+# (was dark only: C_BG, C_CARD, C_BORDER, C_KEY = "#0d1210", "#141b18", "#24302b", "#1b2420";
+#  C_TEXT, C_MUTED = "#eef1f6", "#8b93a5")
+C_BG, C_CARD = ("#f4f7f5", "#0d1210"), ("#ffffff", "#141b18")
+C_BORDER, C_KEY = ("#dde5e0", "#24302b"), ("#eaf0ec", "#1b2420")
+C_TEXT, C_MUTED = ("#14201b", "#eef1f6"), ("#5f6b66", "#8b93a5")
+C_SEL, C_SEL_H = ("#bfe6cf", "#0f9d58"), ("#a9dcbe", "#0b7d46")   # selected segment (light tint / green)
+THEMES = {"light": "Light", "dark": "Dark", "system": "System"}
 C_ACCENT, C_ACCENT_H = "#0f9d58", "#0b7d46"   # Bangladesh green
 C_GREEN, C_AMBER, C_RED, C_GREY = "#22c55e", "#f59e0b", "#ef4444", "#6b7280"
 
@@ -371,6 +376,7 @@ DEFAULTS = {
     "sounds": True,
     "autostart": False,
     "auto_update": True,         # silently download + install new GitHub releases
+    "theme": "light",            # light | dark | system
     "first_run": True,
 }
 
@@ -1140,6 +1146,10 @@ class App:
             Item("Pause shortcut", on(self.toggle_pause), checked=lambda i: self.paused),
             Item("Sound feedback", on(self.toggle_sounds), checked=lambda i: self.cfg["sounds"]),
             Item("Start with Windows", on(self.toggle_autostart), checked=lambda i: self.cfg["autostart"]),
+            Item("Theme", Menu(*[
+                Item(label, on(lambda t=t: self.set_theme(t)),
+                     checked=lambda i, t=t: self.cfg.get("theme", "light") == t, radio=True)
+                for t, label in THEMES.items()])),
             Item("Auto update", on(self.toggle_auto_update), checked=lambda i: self.cfg.get("auto_update", True),
                  enabled=lambda i: Updater.supported()),
             Menu.SEPARATOR,
@@ -1190,6 +1200,13 @@ class App:
             log.exception("update apply failed")
             return
         self.quit()
+
+    def set_theme(self, theme):
+        import customtkinter as ctk
+        self.cfg["theme"] = theme; self.persist()
+        ctk.set_appearance_mode(theme)
+        if hasattr(self, "theme_var"):
+            self.theme_var.set(THEMES[theme])
 
     def toggle_auto_update(self):
         self.cfg["auto_update"] = not self.cfg.get("auto_update", True); self.persist()
@@ -1285,7 +1302,7 @@ class App:
         self.mode_map = {"Hold to talk": "hold", "Press to start / stop": "toggle"}
         self.mode_var = tk.StringVar(value={v: k for k, v in self.mode_map.items()}[self.cfg["mode"]])
         ctk.CTkSegmentedButton(c, values=list(self.mode_map), variable=self.mode_var, font=F(12),
-                               selected_color=C_ACCENT, selected_hover_color=C_ACCENT_H, unselected_color=C_KEY, fg_color=C_KEY,
+                               selected_color=C_SEL, selected_hover_color=C_SEL_H, text_color=C_TEXT, unselected_color=C_KEY, fg_color=C_KEY,
                                command=lambda _v: self.save_settings(quiet=True)).grid(
             row=3, column=1, columnspan=2, sticky="w", padx=(0, 18), pady=(6, 16))
 
@@ -1295,7 +1312,7 @@ class App:
         self.engine_map = {"Bangla + English": "mixed", "Bangla only (fast)": "bangla"}
         self.engine_var = tk.StringVar(value={v: k for k, v in self.engine_map.items()}[self.cfg["engine"]])
         ctk.CTkSegmentedButton(c, values=list(self.engine_map), variable=self.engine_var, font=F(12),
-                               selected_color=C_ACCENT, selected_hover_color=C_ACCENT_H, unselected_color=C_KEY, fg_color=C_KEY,
+                               selected_color=C_SEL, selected_hover_color=C_SEL_H, text_color=C_TEXT, unselected_color=C_KEY, fg_color=C_KEY,
                                command=lambda _v: self.save_settings(quiet=True)).grid(
             row=2, column=1, columnspan=2, sticky="w", padx=(0, 18), pady=6)
         self.lang_var = tk.StringVar(value=LANG_LABELS.get(self.cfg["language"], LANG_LABELS["auto"]))
@@ -1310,7 +1327,8 @@ class App:
         self.mics = self.list_mics()
         self.mic_var = tk.StringVar(value=self.cfg["device"] or "System default")
         ctk.CTkOptionMenu(c, values=["System default"] + self.mics, variable=self.mic_var, font=F(12),
-                          fg_color=C_KEY, button_color=C_KEY, button_hover_color=C_BORDER, width=380,
+                          fg_color=C_KEY, button_color=C_KEY, button_hover_color=C_BORDER, width=380, text_color=C_TEXT,
+                          dropdown_fg_color=C_CARD, dropdown_text_color=C_TEXT, dropdown_hover_color=C_KEY,
                           dynamic_resizing=False, command=lambda _v: self.save_settings(quiet=True)).grid(
             row=4, column=1, columnspan=2, sticky="w", pady=(6, 16))
 
@@ -1320,7 +1338,7 @@ class App:
         self.output_map = {"Paste (recommended)": "paste", "Type characters": "type"}
         self.output_var = tk.StringVar(value={v: k for k, v in self.output_map.items()}[self.cfg["output"]])
         ctk.CTkSegmentedButton(c, values=list(self.output_map), variable=self.output_var, font=F(12),
-                               selected_color=C_ACCENT, selected_hover_color=C_ACCENT_H, unselected_color=C_KEY, fg_color=C_KEY,
+                               selected_color=C_SEL, selected_hover_color=C_SEL_H, text_color=C_TEXT, unselected_color=C_KEY, fg_color=C_KEY,
                                command=lambda _v: self.save_settings(quiet=True)).grid(
             row=1, column=1, columnspan=2, sticky="w", pady=6)
         sw = ctk.CTkFrame(c, fg_color="transparent"); sw.grid(row=2, column=0, columnspan=3, sticky="ew", padx=18, pady=(4, 14))
@@ -1336,6 +1354,12 @@ class App:
             ctk.CTkSwitch(sw, text=text, variable=var, font=F(12), progress_color=C_ACCENT, text_color=C_TEXT,
                           command=lambda: self.save_settings(quiet=True)).grid(
                 row=i // 2, column=i % 2, sticky="w", pady=5)
+        label(c, 3, "Theme")
+        self.theme_var = tk.StringVar(value=THEMES[self.cfg.get("theme", "light")])
+        ctk.CTkSegmentedButton(c, values=list(THEMES.values()), variable=self.theme_var, font=F(12),
+                               selected_color=C_SEL, selected_hover_color=C_SEL_H, text_color=C_TEXT, unselected_color=C_KEY, fg_color=C_KEY,
+                               command=lambda v: self.set_theme({b: a for a, b in THEMES.items()}[v])).grid(
+            row=3, column=1, columnspan=2, sticky="w", pady=(0, 14))
 
         # ---- history card
         c = card(4, "Recent dictations", "এখানে click করে shortcut চেপে test করতে পারেন।")
@@ -1345,10 +1369,10 @@ class App:
                                    border_width=0, corner_radius=10, wrap="word")
         self.text.grid(row=2, column=0, columnspan=3, sticky="nsew", padx=18, pady=(0, 10))
         bf = ctk.CTkFrame(c, fg_color="transparent"); bf.grid(row=3, column=0, columnspan=3, sticky="ew", padx=18, pady=(0, 14))
-        ctk.CTkButton(bf, text="Copy last", width=110, command=self.copy_last, fg_color=C_KEY,
+        ctk.CTkButton(bf, text="Copy last", width=110, command=self.copy_last, fg_color=C_KEY, text_color=C_TEXT,
                       hover_color=C_BORDER, font=F(12)).pack(side="left")
         ctk.CTkButton(bf, text="Clear", width=80, command=lambda: self.text.delete("1.0", "end"),
-                      fg_color=C_KEY, hover_color=C_BORDER, font=F(12)).pack(side="left", padx=8)
+                      fg_color=C_KEY, hover_color=C_BORDER, text_color=C_TEXT, font=F(12)).pack(side="left", padx=8)
         ctk.CTkButton(bf, text="Minimise to tray", width=150, command=self.hide_window, fg_color=C_ACCENT,
                       hover_color=C_ACCENT_H, font=F(12, "bold")).pack(side="right")
 
@@ -1481,7 +1505,9 @@ def main():
     globals()["_MUTEX"] = single_instance()  # must stay alive for the process lifetime
     log.info("starting %s %s from %s", APP_NAME, VERSION, ROOT)
     import customtkinter as ctk
-    ctk.set_appearance_mode("dark")
+    # ctk.set_appearance_mode("dark")  # was dark only; now Light (default) / Dark / System
+    theme = load_config().get("theme", "light")
+    ctk.set_appearance_mode(theme if theme in THEMES else "light")
     root = ctk.CTk()
     root.report_callback_exception = lambda *a: log.error("tk error:\n%s", "".join(traceback.format_exception(*a)))
     App(root)

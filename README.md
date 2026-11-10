@@ -19,7 +19,7 @@
   <a href="https://github.com/itrabbi24/kothok/releases/latest/download/Kothok-portable.zip"><b>⬇ ডাউনলোড করুন (Kothok-portable.zip)</b></a>
 </p>
 
-<p align="center"><img src="website/public/screenshot-settings.png" width="560" alt="Kothok settings window"></p>
+<p align="center"><img src="website/public/screenshot-light.png" width="560" alt="Kothok settings window"></p>
 
 ---
 
@@ -112,7 +112,6 @@ version_info.txt     exe-এর ভার্সন তথ্য
 build-portable.ps1   portable বিল্ড + zip
 download-model.ps1   মডেল ডাউনলোড
 assets/              লোগো (SVG/PNG/ICO), tools/make_assets.py দিয়ে বানানো
-website/             ল্যান্ডিং পেজ (Next.js, Vercel-এ হোস্ট)
 legacy/              পুরোনো v1 কোড, রেফারেন্সের জন্য রাখা
 ```
 
@@ -133,20 +132,9 @@ legacy/              পুরোনো v1 কোড, রেফারেন্�
 
    বা `gh` CLI দিয়ে:
    ```powershell
-   gh release create v2.1.0 dist\Kothok-portable.zip dist\Kothok-update.zip --title "Kothok v2.1.0" --notes "..."
+   gh release create v2.2.0 dist\Kothok-portable.zip dist\Kothok-update.zip --title "Kothok v2.2.0" --notes "..."
    ```
 4. যাদের পিসিতে Kothok চলছে, তারা কয়েক ঘণ্টার মধ্যে নিজে থেকেই আপডেট পেয়ে যাবে।
-
-### ল্যান্ডিং পেজ
-
-```powershell
-cd website
-npm install
-npm run dev      # http://localhost:3000
-npm run build    # static export -> website/out
-```
-
-Vercel-এ ইমপোর্ট করার সময় **Root Directory = `website`** দিন। ডাউনলোড বাটন সবসময় সর্বশেষ release-এর `Kothok-portable.zip`-এ যায়, তাই প্রতি release-এ ওয়েবসাইট বদলাতে হয় না।
 
 ## অবদান রাখুন
 
