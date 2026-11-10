@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360">
+  <rect width="1200" height="360" fill="#0d1210"/>
+  <g transform="translate(60 52) scale(0.5)">
+    <rect x="8" y="8" width="496" height="496" rx="112" fill="#006a4e"/>
+    <g>
+    <path d="M256 452 Q372 327 256 202 Q140 327 256 452Z" fill="#0b7a5a" transform="rotate(-64 256 452)"/>
+    <path d="M256 452 Q372 327 256 202 Q140 327 256 452Z" fill="#0b7a5a" transform="rotate(64 256 452)"/>
+    <path d="M256 452 Q372 302 256 152 Q140 302 256 452Z" fill="#12936c" transform="rotate(-34 256 452)"/>
+    <path d="M256 452 Q372 302 256 152 Q140 302 256 452Z" fill="#12936c" transform="rotate(34 256 452)"/>
+    <path d="M256 452 Q372 287 256 122 Q140 287 256 452Z" fill="#18a679" transform="rotate(0 256 452)"/>
+  </g>
+    <circle cx="256" cy="236" r="150" fill="#f42a41"/>
+    <g fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round"><path d="M176 256 a80 60 0 0 0 160 0"/><line x1="256" y1="316" x2="256" y2="352"/></g>
+    <rect x="216" y="136" width="80" height="140" rx="40" fill="#fff"/><rect x="212" y="346" width="88" height="16" rx="8" fill="#fff"/>
+  </g>
+  <text x="380" y="190" font-family="Nirmala UI, Noto Sans Bengali, sans-serif" font-size="150" font-weight="700" fill="#eef1f6">কথক</text>
+  <text x="384" y="262" font-family="Segoe UI, sans-serif" font-size="44" fill="#8b93a5">Kothok · Bangla + English voice typing</text>
+  <text x="384" y="312" font-family="Segoe UI, sans-serif" font-size="28" fill="#0f9d58">by rotexit.com</text>
+</svg>

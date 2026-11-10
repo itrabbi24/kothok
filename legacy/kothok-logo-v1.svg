@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Kothok (কথক) logo: Bangladesh flag green + red sun, shapla petals, microphone -->
+  <rect x="8" y="8" width="496" height="496" rx="112" fill="#006a4e"/>
+  <g>
+    <path d="M256 452 Q372 327 256 202 Q140 327 256 452Z" fill="#0b7a5a" transform="rotate(-64 256 452)"/>
+    <path d="M256 452 Q372 327 256 202 Q140 327 256 452Z" fill="#0b7a5a" transform="rotate(64 256 452)"/>
+    <path d="M256 452 Q372 302 256 152 Q140 302 256 452Z" fill="#12936c" transform="rotate(-34 256 452)"/>
+    <path d="M256 452 Q372 302 256 152 Q140 302 256 452Z" fill="#12936c" transform="rotate(34 256 452)"/>
+    <path d="M256 452 Q372 287 256 122 Q140 287 256 452Z" fill="#18a679" transform="rotate(0 256 452)"/>
+  </g>
+  <circle cx="256" cy="236" r="150" fill="#f42a41"/>
+  <g fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round">
+    <path d="M176 256 a80 60 0 0 0 160 0"/>
+    <line x1="256" y1="316" x2="256" y2="352"/>
+  </g>
+  <rect x="216" y="136" width="80" height="140" rx="40" fill="#fff"/>
+  <rect x="212" y="346" width="88" height="16" rx="8" fill="#fff"/>
+</svg>

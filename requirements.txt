@@ -1,0 +1,6 @@
+numpy>=1.26,<3
+sounddevice>=0.5,<1
+sherpa-onnx>=1.12,<2
+pystray>=0.19,<1
+pillow>=10,<12
+customtkinter>=5.2,<6

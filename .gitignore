@@ -1,0 +1,31 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# build output (published as GitHub release assets instead)
+build/
+dist/
+
+# speech models - downloaded by download-model.ps1 (too large for git)
+models/
+*.tar.bz2
+
+# local runtime files
+app.log
+config.json
+.write_test
+_update/
+
+# local notes / editor
+CLAUDE.md
+.claude/
+.vscode/
+.idea/
+
+# website
+website/node_modules/
+website/.next/
+website/out/
+website/.vercel/

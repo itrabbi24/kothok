@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Kothok (কথক) logo: speech bubble + sound wave, Bangladesh green and red sun -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#14a863"/>
+      <stop offset="1" stop-color="#005c43"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="496" height="496" rx="118" fill="url(#g)"/>
+  <rect x="88" y="132" width="336" height="240" rx="84" fill="#fff"/>
+  <path d="M150 340 L122 430 L236 362 Z" fill="#fff"/>
+  <g fill="#006a4e">
+    <rect x="159" y="224" width="26" height="56" rx="13"/>
+    <rect x="201" y="196" width="26" height="112" rx="13"/>
+    <rect x="243" y="172" width="26" height="160" rx="13"/>
+    <rect x="285" y="196" width="26" height="112" rx="13"/>
+    <rect x="327" y="224" width="26" height="56" rx="13"/>
+  </g>
+  <circle cx="408" cy="110" r="46" fill="#f42a41"/>
+</svg>
