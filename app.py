@@ -30,7 +30,7 @@ import numpy as np
 APP_NAME = "Kothok"          # কথক - "the one who speaks"
 APP_BN = "কথক"
 APP_ID = "Kothok"
-VERSION = "2.6.0"
+VERSION = "2.6.1"
 WEBSITE = "https://rotexit.com"
 UPDATE_REPO = "itrabbi24/kothok"   # GitHub releases are checked for new versions
 UPDATE_ASSET = "Kothok-update.zip"  # app-only zip (no models) attached to every release
@@ -914,8 +914,17 @@ class Overlay:
             self.visible = True
 
     def text(self, text):
-        if len(text) > 70:
-            text = "…" + text[-69:]
+        """Live preview: one line only, showing the newest words (it used to wrap and spill out of the pill)."""
+        from tkinter import font as tkfont
+        if not hasattr(self, "_font"):
+            self._font = tkfont.Font(family="Nirmala UI", size=11)
+        room = self.W - 140
+        text = " ".join(text.split())
+        if self._font.measure(text) > room:
+            words = text.split(" ")
+            while len(words) > 1 and self._font.measure("… " + " ".join(words)) > room:
+                words.pop(0)
+            text = "… " + " ".join(words)
         self.c.itemconfigure(self.label, text=text)
 
     def hide(self):
