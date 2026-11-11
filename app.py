@@ -30,7 +30,7 @@ import numpy as np
 APP_NAME = "Kothok"          # কথক - "the one who speaks"
 APP_BN = "কথক"
 APP_ID = "Kothok"
-VERSION = "2.6.1"
+VERSION = "2.7.0"
 WEBSITE = "https://rotexit.com"
 UPDATE_REPO = "itrabbi24/kothok"   # GitHub releases are checked for new versions
 UPDATE_ASSET = "Kothok-update.zip"  # app-only zip (no models) attached to every release
@@ -126,6 +126,19 @@ KEYEVENTF_KEYUP, KEYEVENTF_UNICODE = 0x2, 0x4
 CF_UNICODETEXT = 13
 GMEM_MOVEABLE = 0x2
 VK_MASK = 0xE8  # unassigned VK; used to stop Alt/Win from opening menus after a swallowed hotkey
+
+
+WM_TIMER = 0x113
+
+
+class LASTINPUTINFO(ctypes.Structure):
+    _fields_ = [("cbSize", wintypes.UINT), ("dwTime", wintypes.DWORD)]
+
+
+user32.GetLastInputInfo.argtypes = (ctypes.POINTER(LASTINPUTINFO),)
+user32.SetTimer.argtypes = (wintypes.HWND, ctypes.c_size_t, wintypes.UINT, ctypes.c_void_p)
+user32.SetTimer.restype = ctypes.c_size_t
+kernel32.GetTickCount.restype = wintypes.DWORD
 
 
 class KBDLLHOOKSTRUCT(ctypes.Structure):
@@ -228,18 +241,45 @@ class KeyboardHook:
         if self.thread_id:
             user32.PostThreadMessageW(self.thread_id, WM_QUIT, 0, 0)
 
-    def _run(self):
-        self.thread_id = kernel32.GetCurrentThreadId()
+    def _install(self):
         hook = user32.SetWindowsHookExW(WH_KEYBOARD_LL, self._proc, kernel32.GetModuleHandleW(None), 0)
         if not hook:
             log.error("SetWindowsHookEx failed: %s", ctypes.get_last_error())
-            return
+        return hook
+
+    def _run(self):
+        # Windows silently removes a low-level hook whose callback is too slow (LowLevelHooksTimeout),
+        # which happens at boot / resume from sleep while the models load and the PC is busy. Nothing
+        # tells us, so a timer checks every few seconds: if the user typed (GetLastInputInfo moved)
+        # but our hook saw nothing for a while, the hook is reinstalled. Also reinstalled periodically.
+        self.thread_id = kernel32.GetCurrentThreadId()
+        hook = self._install()
+        installed = time.monotonic()
+        self.last_seen = kernel32.GetTickCount()
+        user32.SetTimer(None, 0, 3000, None)
         msg = wintypes.MSG()
+        lii = LASTINPUTINFO(ctypes.sizeof(LASTINPUTINFO), 0)
         while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
-            pass
-        user32.UnhookWindowsHookEx(hook)
+            if msg.message != WM_TIMER:
+                continue
+            stale = False
+            if user32.GetLastInputInfo(ctypes.byref(lii)):
+                # input happened >4 s after the last event our hook saw -> suspicious
+                stale = ((lii.dwTime - self.last_seen) & 0xFFFFFFFF) < 0x7FFFFFFF and \
+                        ((lii.dwTime - self.last_seen) & 0xFFFFFFFF) > 4000
+            if not hook or (stale and time.monotonic() - installed > 10) or time.monotonic() - installed > 600:
+                if hook:
+                    user32.UnhookWindowsHookEx(hook)
+                hook = self._install()
+                installed = time.monotonic()
+                self.last_seen = kernel32.GetTickCount()
+                # (stale also fires after pure mouse use - reinstalling is cheap and harmless)
+                log.debug("keyboard hook reinstalled")
+        if hook:
+            user32.UnhookWindowsHookEx(hook)
 
     def _hook(self, code, wparam, lparam):
+        self.last_seen = kernel32.GetTickCount()
         try:
             if code == 0:
                 kb = ctypes.cast(lparam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
@@ -267,7 +307,14 @@ class KeyboardHook:
             return False
         if down:
             if self.active:
-                return True  # auto-repeat
+                if user32.GetAsyncKeyState(vk) & 0x8000:
+                    return True  # auto-repeat
+                # the key-up was missed (sleep, lock screen, hook dropped) - finish the old press first
+                self.active = False
+                self.on_event("release")
+            # Re-read the real modifier state: a key-up missed during sleep/lock/UAC used to leave
+            # e.g. ALT stuck in `held`, and then the hotkey never matched again.
+            self.held = {name for v, name in MOD_VK.items() if user32.GetAsyncKeyState(v) & 0x8000}
             if frozenset(self.held) == self.mods:
                 self.active = True
                 if self.held & {"ALT", "WIN"}:
@@ -375,6 +422,7 @@ DEFAULTS = {
     "output": "paste",           # paste | type
     "restore_clipboard": True,
     "trailing_space": True,
+    "word_fixes": "",            # one "wrong = right" per line, applied to every dictation
     "sounds": True,
     "autostart": False,
     "auto_update": True,         # silently download + install new GitHub releases
@@ -554,7 +602,8 @@ class BanglaEngine:
             tokens=str(d / "tokens.txt"), encoder=str(d / "encoder.onnx"),
             decoder=str(d / "decoder.onnx"), joiner=str(d / "joiner.onnx"),
             num_threads=_threads(), sample_rate=16000, feature_dim=80,
-            decoding_method="greedy_search", enable_endpoint_detection=True,
+            # beam search (was greedy_search) keeps 4 hypotheses -> fewer wrong letters/words, small CPU cost
+            decoding_method="modified_beam_search", max_active_paths=4, enable_endpoint_detection=True,
             rule1_min_trailing_silence=2.4, rule2_min_trailing_silence=1.0, rule3_min_utterance_length=30,
         )
 
@@ -742,6 +791,17 @@ ENGINES = {"mixed": MixedEngine, "bangla": BanglaEngine}
 
 HALLUCINATIONS = re.compile(
     r"^(thank you\.?|thanks for watching!?|subtitles? by.*|ধন্যবাদ।?|\[.*\]|\(.*\))$", re.IGNORECASE)
+
+
+def apply_word_fixes(text: str, rules: str) -> str:
+    """User dictionary: lines like "কতক = কথক" or "rotex it = rotexit". Whole-word, case-insensitive."""
+    for line in (rules or "").splitlines():
+        if "=" not in line or line.strip().startswith("#"):
+            continue
+        wrong, right = (p.strip() for p in line.split("=", 1))
+        if wrong:
+            text = re.sub(r"(?<!\w)" + re.escape(wrong) + r"(?!\w)", lambda m: right, text, flags=re.I)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def clean_text(text: str) -> str:
@@ -965,6 +1025,7 @@ class App:
         self.loading = False
         self.recording = False
         self.busy = False
+        self.busy_since = 0.0
         self.stream = None
         self.audio_q = None
         self.started_at = 0.0
@@ -1095,6 +1156,9 @@ class App:
         return ("hold " if self.cfg["mode"] == "hold" else "press ") + self.cfg["hotkey"]
 
     def start_recording(self):
+        if self.busy and time.time() - self.busy_since > 60:
+            log.warning("previous dictation stuck for >60 s - resetting")  # never lock the hotkey forever
+            self.busy = False
         if self.recording or self.busy:
             return
         self.last_used = time.time()
@@ -1106,14 +1170,31 @@ class App:
         self.target = user32.GetForegroundWindow()
         self.audio_q = queue.Queue()
         device = self.cfg["device"] or None
-        try:
-            info = sd.query_devices(device, "input")
+        q = self.audio_q
+
+        def open_stream(dev):
+            info = sd.query_devices(dev, "input")
             sr = int(info["default_samplerate"]) or 16000
-            q = self.audio_q
-            self.stream = sd.InputStream(device=device, samplerate=sr, channels=1, dtype="float32",
-                                         blocksize=int(sr * 0.1),
-                                         callback=lambda data, frames, t, status: self.on_audio(q, sr, data))
-            self.stream.start()
+            st = sd.InputStream(device=dev, samplerate=sr, channels=1, dtype="float32", blocksize=int(sr * 0.1),
+                                callback=lambda data, frames, t, status: self.on_audio(q, sr, data))
+            st.start()
+            return st
+
+        try:
+            try:
+                self.stream = open_stream(device)
+            except Exception:
+                # PortAudio keeps the device list from when it started; after sleep/reboot, a mic
+                # (re)plugged or a USB/Bluetooth headset reconnecting it is stale. Re-scan and retry,
+                # falling back to the system default if the chosen mic is gone.
+                log.warning("microphone open failed, re-scanning audio devices", exc_info=True)
+                sd._terminate(); sd._initialize()
+                try:
+                    self.stream = open_stream(device)
+                except Exception:
+                    if device is None:
+                        raise
+                    self.stream = open_stream(None)
         except Exception as exc:
             log.exception("microphone")
             self.stream = None
@@ -1138,6 +1219,7 @@ class App:
             return
         self.recording = False
         self.busy = True
+        self.busy_since = time.time()
         if self.stream:
             try:
                 time.sleep(0.12)  # catch the last syllable
@@ -1171,6 +1253,10 @@ class App:
                         self.ui.put(("partial", p))
                     last_partial = time.time()
             text = clean_text(session.finish())
+            try:
+                text = apply_word_fixes(text, cfg.get("word_fixes", ""))
+            except re.error:
+                log.exception("word fixes")
             log.info("transcribed %d chars", len(text))
             if text:
                 insert_text(text + (" " if cfg["trailing_space"] else ""), target, cfg["output"],
@@ -1445,6 +1531,8 @@ class App:
         outer.grid_rowconfigure(3, weight=1)
         bf = ctk.CTkFrame(c, fg_color="transparent")
         bf.grid(row=0, column=2, sticky="e", padx=16, pady=(10, 4))
+        ctk.CTkButton(bf, text="Word fixes", width=100, height=28, command=self.edit_word_fixes, fg_color=C_ACCENT,
+                      hover_color=C_ACCENT_H, font=F(12, "bold")).pack(side="left", padx=(0, 8))
         ctk.CTkButton(bf, text="Copy last", width=90, height=28, command=self.copy_last, fg_color=C_KEY,
                       text_color=C_TEXT, hover_color=C_BORDER, font=F(12)).pack(side="left")
         ctk.CTkButton(bf, text="Clear", width=70, height=28, command=lambda: self.text.delete("1.0", "end"),
@@ -1648,6 +1736,24 @@ class App:
             self.load_engine_async()
         else:
             self.refresh_ready()
+
+    def edit_word_fixes(self):
+        """Small editor for the user's own corrections (names, brands, words the model keeps mishearing)."""
+        w = ctk.CTkToplevel(self.root)
+        w.title("Word fixes"); w.geometry("460x420"); w.transient(self.root); w.grab_set()
+        ctk.CTkLabel(w, text="ভুল শব্দ = সঠিক শব্দ   (প্রতি লাইনে একটা)", font=BN(14, "bold"),
+                     text_color=C_TEXT).pack(anchor="w", padx=16, pady=(14, 2))
+        ctk.CTkLabel(w, text="Example:  কতক = কথক     rotex it = rotexit\nEvery dictation is corrected with this list.",
+                     font=F(11), text_color=C_MUTED, justify="left").pack(anchor="w", padx=16)
+        box = ctk.CTkTextbox(w, font=BN(14), fg_color=C_KEY, text_color=C_TEXT, corner_radius=10)
+        box.pack(fill="both", expand=True, padx=16, pady=10)
+        box.insert("1.0", self.cfg.get("word_fixes", ""))
+
+        def done():
+            self.cfg["word_fixes"] = box.get("1.0", "end").strip()
+            self.persist(); w.destroy()
+        ctk.CTkButton(w, text="Save", command=done, fg_color=C_ACCENT, hover_color=C_ACCENT_H,
+                      font=F(12, "bold")).pack(anchor="e", padx=16, pady=(0, 14))
 
     def refresh_ready(self):
         if self.engine:
