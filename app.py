@@ -30,7 +30,7 @@ import numpy as np
 APP_NAME = "Kothok"          # কথক - "the one who speaks"
 APP_BN = "কথক"
 APP_ID = "Kothok"
-VERSION = "2.7.0"
+VERSION = "2.7.1"
 WEBSITE = "https://rotexit.com"
 UPDATE_REPO = "itrabbi24/kothok"   # GitHub releases are checked for new versions
 UPDATE_ASSET = "Kothok-update.zip"  # app-only zip (no models) attached to every release
@@ -1823,13 +1823,50 @@ class App:
         self.root.after(50, self.root.destroy)
 
 
+def splash_text(text):
+    """Status line on the startup banner (frozen build only - see Kothok.spec)."""
+    try:
+        import pyi_splash
+        pyi_splash.update_text(text)
+    except Exception:
+        pass
+
+
+def close_splash():
+    try:
+        import pyi_splash
+        pyi_splash.close()
+    except Exception:
+        pass
+
+
+kernel32.CreateEventW.argtypes = (ctypes.c_void_p, wintypes.BOOL, wintypes.BOOL, wintypes.LPCWSTR)
+kernel32.CreateEventW.restype = wintypes.HANDLE
+kernel32.SetEvent.argtypes = (wintypes.HANDLE,)
+kernel32.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+SHOW_EVENT = f"Local\\{APP_ID}_ShowWindow"
+
+
 def single_instance():
     handle = kernel32.CreateMutexW(None, False, f"Local\\{APP_ID}_SingleInstance")
     if ctypes.get_last_error() == 183:  # ERROR_ALREADY_EXISTS
-        user32.MessageBoxW(None, f"{APP_NAME} is already running.\nLook for the microphone icon in the system tray.",
-                           APP_NAME, 0x40)
+        # Already running: ask that copy to bring its window to the front (was only an "already running" box)
+        close_splash()
+        if "--tray" not in sys.argv:
+            ev = kernel32.CreateEventW(None, False, False, SHOW_EVENT)
+            if not (ev and kernel32.SetEvent(ev)):
+                user32.MessageBoxW(None, f"{APP_NAME} is already running.\nLook for the microphone icon in the system tray.",
+                                   APP_NAME, 0x40)
         sys.exit(0)
     return handle
+
+
+def watch_show_requests(app):
+    """A second launch of Kothok.exe signals SHOW_EVENT -> open this (running) copy's window."""
+    ev = kernel32.CreateEventW(None, False, False, SHOW_EVENT)
+    while ev:
+        if kernel32.WaitForSingleObject(ev, 0xFFFFFFFF) == 0:
+            app.ui.put(("tray", app.show_window))
 
 
 def main():
@@ -1851,13 +1888,17 @@ def main():
         pass
     globals()["_MUTEX"] = single_instance()  # must stay alive for the process lifetime
     log.info("starting %s %s from %s", APP_NAME, VERSION, ROOT)
+    splash_text("Starting…")
     import customtkinter as ctk
     # ctk.set_appearance_mode("dark")  # was dark only; now Light (default) / Dark / System
     theme = load_config().get("theme", "light")
     ctk.set_appearance_mode(theme if theme in THEMES else "light")
     root = ctk.CTk()
     root.report_callback_exception = lambda *a: log.error("tk error:\n%s", "".join(traceback.format_exception(*a)))
-    App(root)
+    splash_text("Opening window…")
+    app = App(root)
+    threading.Thread(target=watch_show_requests, args=(app,), name="ShowRequests", daemon=True).start()
+    root.after(400, close_splash)  # window is drawn by now; models keep loading ("Loading…" chip)
     root.mainloop()
     log.info("exit")
 
@@ -1867,6 +1908,7 @@ if __name__ == "__main__":
         main()
     except Exception:
         log.exception("fatal")
+        close_splash()
         user32.MessageBoxW(None, f"Unexpected error - see log:\n{LOG_FILE}\n\n{traceback.format_exc()[-600:]}",
                            APP_NAME, 0x10)
         raise

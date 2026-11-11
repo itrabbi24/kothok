@@ -5,6 +5,7 @@ $python = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
 if (-not (Test-Path $python)) { throw 'Run .\setup.ps1 first.' }
 & $python -m pip install -q pyinstaller
 & $python tools\make_assets.py
+& $python tools\make_splash.py   # startup banner shows the version number
 Copy-Item assets\kothok.ico app.ico -Force
 # Old build used: PyInstaller --onedir --noconsole --name BanglaVoiceToText app.py  (see legacy/)
 & $python -m PyInstaller --noconfirm --clean Kothok.spec

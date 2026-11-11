@@ -17,8 +17,12 @@ a = Analysis(
     optimize=1,
 )
 pyz = PYZ(a.pure)
+# Startup banner: shown by the bootloader the moment Kothok.exe is opened (before Python/models load),
+# closed by app.close_splash() once the window is up. Image: tools/make_splash.py -> assets/splash.png
+splash = Splash("assets/splash.png", binaries=a.binaries, datas=a.datas,
+                text_pos=(152, 178), text_size=10, text_color="#9fb5ab", minify_script=True)
 exe = EXE(
-    pyz, a.scripts, [],
+    pyz, splash, a.scripts, [],
     exclude_binaries=True,
     name="Kothok",
     icon="app.ico",
@@ -26,4 +30,4 @@ exe = EXE(
     console=False,
     upx=False,
 )
-coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="Kothok")
+coll = COLLECT(exe, splash.binaries, a.binaries, a.datas, strip=False, upx=False, name="Kothok")
