@@ -30,7 +30,7 @@ import numpy as np
 APP_NAME = "Kothok"          # কথক - "the one who speaks"
 APP_BN = "কথক"
 APP_ID = "Kothok"
-VERSION = "2.7.1"
+VERSION = "2.7.2"
 WEBSITE = "https://rotexit.com"
 UPDATE_REPO = "itrabbi24/kothok"   # GitHub releases are checked for new versions
 UPDATE_ASSET = "Kothok-update.zip"  # app-only zip (no models) attached to every release
@@ -226,6 +226,7 @@ class KeyboardHook:
         self.vk = 0
         self.held: set = set()            # modifier names currently physically down
         self.active = False               # hotkey main key currently down (swallowed)
+        self.last_down = 0.0              # time of the last key-down of the hotkey (incl. repeats)
         self.capture = False
         self.thread_id = None
         self._proc = HOOKPROC(self._hook)  # keep reference alive
@@ -306,12 +307,18 @@ class KeyboardHook:
         if vk != self.vk:
             return False
         if down:
+            now = time.monotonic()
             if self.active:
-                if user32.GetAsyncKeyState(vk) & 0x8000:
-                    return True  # auto-repeat
-                # the key-up was missed (sleep, lock screen, hook dropped) - finish the old press first
+                # Auto-repeat: while the key is held Windows repeats key-down every ~30 ms (after an
+                # initial delay of at most 1 s). GetAsyncKeyState can't tell us - we swallow the key, so
+                # Windows never marks it as down (that check made hold-to-talk restart ~30x a second).
+                if now - self.last_down < 1.5:
+                    self.last_down = now
+                    return True
+                # no repeat for a while -> the key-up was missed (sleep, lock screen, hook dropped)
                 self.active = False
                 self.on_event("release")
+            self.last_down = now
             # Re-read the real modifier state: a key-up missed during sleep/lock/UAC used to leave
             # e.g. ALT stuck in `held`, and then the hotkey never matched again.
             self.held = {name for v, name in MOD_VK.items() if user32.GetAsyncKeyState(v) & 0x8000}
